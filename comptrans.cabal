@@ -28,11 +28,13 @@ Library
                        Tarski.Data.Comp.Trans.Collect
                        Tarski.Data.Comp.Trans.DeriveMulti
                        Tarski.Data.Comp.Trans.DeriveTrans
+                       Tarski.Data.Comp.Trans.DeriveUntrans
                        Tarski.Data.Comp.Trans.Names
 
-  Build-Depends:       base ==4.6.*,
-                       containers <= 0.6,
-                       lens <= 3.10,
-                       template-haskell,
-                       th-expand-syns <= 0.4,
-                       language-java
+  Build-Depends:       base ==4.6.*
+                     , compdata <= 0.8
+                     , containers <= 0.6
+                     , lens <= 3.10
+                     , template-haskell
+                     , th-expand-syns <= 0.4
+                     , language-java

@@ -1,13 +1,15 @@
 module Tarski.Data.Comp.Trans.Names (
-    standardNameSet,
-    baseTypes,
-    getLab,
-    transName,
-    nameLab,
-    smartConstrName,
-    modNameBase
+    standardNameSet
+  , baseTypes
+  , getLab
+  , transName
+  , nameLab
+  , smartConstrName
+  , modNameBase
+  , simplifyDataInf
   ) where
 
+import Control.Lens ( (^.), _3 )
 import Control.Monad ( liftM2 )
 
 import Data.Functor ( (<$>) )
@@ -61,3 +63,13 @@ smartConstrName = modNameBase ('i':)
 
 modNameBase :: (String -> String) -> Name -> Name
 modNameBase f = mkName . f . nameBase
+
+simplifyDataInf :: Info -> Q [(Name, [Type])]
+simplifyDataInf (TyConI (DataD _ _ [] cons _))   = mapM extractCon cons
+simplifyDataInf (TyConI (NewtypeD _ _ [] con _)) = sequence [extractCon con]
+simplifyDataInf _                                = fail $ "Attempted to derive multi-sorted compositional data type for non-nullary datatype"
+
+extractCon :: Con -> Q (Name, [Type])
+extractCon (NormalC nm sts) = return (nm, map snd sts)
+extractCon (RecC nm vsts)   = return (nm, map (^. _3) vsts)
+extractCon _                = fail "Unsupported constructor type encountered"
