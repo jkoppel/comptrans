@@ -2,19 +2,66 @@ module Tarski.Data.Comp.Trans.DeriveTrans (
     deriveTrans
   ) where
 
-import Control.Monad ( liftM )
+import Control.Lens ( (^.), _3 )
 
-import Language.Haskell.TH.Syntax
+import Language.Haskell.TH
 
-deriveTrans :: Name -> [Name] -> Q [Dec]
-deriveTrans root names = do classNm <- newName "Trans"
-                            funNm <- newName "trans"
-                            liftM (:[]) $ mkClass classNm funNm
+import Tarski.Data.Comp.Trans.Names ( baseTypes, transName, nameLab )
 
-mkClass :: Name -> Name -> Q Dec
-mkClass classNm funNm = do a <- newName "a"
-                           i <- newName "i"
-                           let foo = mkName "Foo"
-                           let transDec = SigD funNm (foldl AppT ArrowT [VarT a, AppT (ConT foo) (VarT i)])
-                           return $ ClassD [] classNm [PlainTV a, PlainTV i] [] [transDec]
+deriveTrans :: Name -> [Name] -> Type -> Q [Dec]
+deriveTrans root names term = do classNm <- newName "Trans"
+                                 funNm <- newName "trans"
 
+                                 classDec <- mkClass classNm funNm term
+                                 funDec <- mkFunc root funNm term
+                                 instanceDecs <- mapM (mkInstance classNm funNm) names
+
+                                 return $ [classDec] ++ funDec ++ instanceDecs
+
+mkFunc :: Name -> Name -> Type -> Q [Dec]
+mkFunc typ funNm term = [d| translate :: $typ' -> ($term' $lab)
+                            translate = $funNm'
+                          |]
+  where
+    typ' = varT typ
+    term' = return term
+    lab = varT $ nameLab typ
+    funNm' = varE funNm
+
+mkClass :: Name -> Name -> Type -> Q Dec
+mkClass classNm funNm term = do a <- newName "a"
+                                i <- newName "i"
+                                let transDec = SigD funNm (foldl AppT ArrowT [VarT a, AppT term (VarT i)])
+                                return $ ClassD [] classNm [PlainTV a, PlainTV i] [] [transDec]
+
+mkInstance :: Name -> Name -> Name -> Q Dec
+mkInstance classNm funNm typNm = do inf <- reify typNm
+                                    nmTyps <- extract inf
+                                    clauses <- mapM (uncurry $ mkClause funNm) nmTyps
+                                    let targNm = nameLab typNm
+                                    return (InstanceD []
+                                                      (AppT (AppT (ConT classNm) (ConT typNm)) (ConT targNm))
+                                                      [FunD funNm clauses])
+  where
+    extract :: Info -> Q [(Name, [Type])]
+    extract (TyConI (DataD _ _ [] cons _))   = mapM extractCon cons
+    extract (TyConI (NewtypeD _ _ [] con _)) = sequence [extractCon con]
+    extract _                                 = fail $ "Attempted to derive multi-sorted compositional data type for "
+                                                       ++ show typNm ++ ", which is not a nullary datatype"
+    extractCon :: Con -> Q (Name, [Type])
+    extractCon (NormalC nm sts) = return (nm, map snd sts)
+    extractCon (RecC nm vsts)   = return (nm, map (^. _3) vsts)
+    extractCon _                = fail "Unsupported constructor type encountered"
+    
+
+mkClause :: Name -> Name -> [Type] -> Q Clause
+mkClause funNm con tps = do nms <- mapM (const $ newName "x") tps
+                            return $ Clause [pat nms] (body nms) []
+  where
+    pat nms = ConP con (map VarP nms)
+
+    body nms = NormalB $ foldl AppE (ConE (transName con)) (map atom $ zip nms tps)
+
+    atom :: (Name, Type) -> Exp
+    atom (x, t) | elem t baseTypes = VarE x
+    atom (x, _)                    = AppE (VarE funNm) (VarE x)

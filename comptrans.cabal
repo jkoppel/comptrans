@@ -27,6 +27,7 @@ Library
                        Tarski.Data.Comp.Trans.Collect
                        Tarski.Data.Comp.Trans.DeriveMulti
                        Tarski.Data.Comp.Trans.DeriveTrans
+                       Tarski.Data.Comp.Trans.Names
   Other-Modules:       
   Build-Depends:       base ==4.6.*,
                        containers <= 0.6,

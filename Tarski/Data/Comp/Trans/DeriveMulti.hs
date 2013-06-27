@@ -8,7 +8,9 @@ import Control.Monad ( liftM )
 import Data.Functor ( (<$>) )
 
 import Language.Haskell.TH.Syntax
-import Language.Haskell.TH.ExpandSyns
+import Language.Haskell.TH.ExpandSyns ( expandSyns )
+
+import Tarski.Data.Comp.Trans.Names ( baseTypes, transName, nameLab, getLab )
 
 deriveMulti :: Name -> Q [Dec]
 deriveMulti n = do inf <- reify n
@@ -22,7 +24,7 @@ deriveMulti n = do inf <- reify n
 mkGADT :: Name -> [Con] -> Q [Dec]
 mkGADT n cons = do e <- newName "e"
                    i <- newName "i"
-                   let n' = mkName $ nameBase n
+                   let n' = transName n
                    cons' <- mapM (mkCon n' e i) cons
                    return $ [DataD [] n' [PlainTV e, PlainTV i] cons' []
                             ,DataD [] (nameLab n) [] [] []
@@ -34,37 +36,17 @@ mkCon l e i (NormalC n sts) = ForallC [] ctx <$> inner
     ctx = [EqualP (VarT i) (ConT $ nameLab l)]
 
     sts'  = sts & (traverse._2) %%~ unfixType e
-    inner = liftM (NormalC (mkName $ nameBase n)) sts'
+    inner = liftM (NormalC (transName n)) sts'
 mkCon l e i (RecC n vsts) = ForallC [] ctx <$> inner
   where
     ctx = [EqualP (VarT i) (ConT $ nameLab l)]
 
-    vsts'  = vsts & (traverse._1) %~ (mkName.nameBase)
+    vsts'  = vsts & (traverse._1) %~ transName
     vsts'' = vsts' & (traverse._3) %%~ unfixType e
-    inner  = liftM (RecC (mkName $ nameBase n)) vsts''
+    inner  = liftM (RecC (transName n)) vsts''
 mkCon _ _ _ c = fail $ "Attempted to derive multi-sorted compositional datatype for something with non-normal constructors: " ++ show c
-
-baseTypes :: [Type]
-baseTypes = [ConT ''Int
-            ,ConT ''Bool
-            ,ConT ''Char
-            ,ConT ''Double
-            ,ConT ''Integer
-            ,ConT ''String
-            ,AppT ListT (ConT ''Char)
-            ]
 
 unfixType :: Name -> Type -> Q Type
 unfixType _ t | elem t baseTypes = return t
 unfixType e t = do t' <- expandSyns t >>= getLab
                    return $ AppT (VarT e) t'
-
-getLab :: Type -> Q Type
-getLab (AppT f t) = AppT f <$> getLab t
-getLab ListT      = return ListT
-getLab (TupleT n) = return $ TupleT n
-getLab (ConT n)   = return $ ConT $ nameLab n
-getLab _          = fail "When deriving multi-sorted compositional data type, found unsupported type in AST."
-
-nameLab :: Name -> Name
-nameLab n = mkName $ nameBase n ++ "L"

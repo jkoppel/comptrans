@@ -8,17 +8,16 @@ import Control.Monad ( liftM, liftM2 )
 import Data.Foldable ( fold )
 import Data.Monoid ( Monoid(..) )
 
-import Data.Set as Set ( Set, singleton, union, difference, toList, fromList, member, empty )
+import Data.Set as Set ( Set, singleton, union, difference, toList, member, empty )
 
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.ExpandSyns ( expandSyns )
 
-standardNames :: Set Name
-standardNames = fromList [''Maybe, ''Int, ''Integer, ''Bool, ''Char, ''Double]
+import Tarski.Data.Comp.Trans.Names ( standardNameSet )
 
 collectTypes :: Name -> Q (Set Name)
 collectTypes n = liftM2 difference (fixpoint collectTypes' n)
-                                   (return standardNames)
+                                   (return standardNameSet)
 
 fixpoint :: (Ord a, Monad m) => (a -> m (Set a)) -> a -> m (Set a)
 fixpoint f x = run $ singleton x
@@ -33,10 +32,10 @@ mapSetM :: (Monad m, Ord b) => (a -> m b) -> Set a -> m (Set b)
 mapSetM f x = liftM (mconcat . map singleton) $ mapM f (toList x)
 
 collectTypes' :: Name -> Q (Set Name)
-collectTypes' n | member n standardNames = return empty
+collectTypes' n | member n standardNameSet = return empty
 collectTypes' n = do inf <- reify n
                      let cons = case inf of
-                                      TyConI (DataD _ _ _ cons _)   -> cons
+                                      TyConI (DataD _ _ _ cns _)    -> cns
                                       TyConI (NewtypeD _ _ _ con _) -> [con]
                                       _ -> []
                      childNames <- liftM concat $ mapM extractNames cons
