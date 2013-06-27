@@ -23,12 +23,13 @@ Library
     -Wall
 
   Exposed-Modules:     
-                       Main
+                       Tarski.Data.Comp.Trans
+  Other-Modules:       
                        Tarski.Data.Comp.Trans.Collect
                        Tarski.Data.Comp.Trans.DeriveMulti
                        Tarski.Data.Comp.Trans.DeriveTrans
                        Tarski.Data.Comp.Trans.Names
-  Other-Modules:       
+
   Build-Depends:       base ==4.6.*,
                        containers <= 0.6,
                        lens <= 3.10,

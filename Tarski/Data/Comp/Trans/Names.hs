@@ -3,7 +3,9 @@ module Tarski.Data.Comp.Trans.Names (
     baseTypes,
     transName,
     getLab,
-    nameLab
+    nameLab,
+    smartConstrName,
+    modNameBase
   ) where
 
 import Data.Functor ( (<$>) )
@@ -48,4 +50,10 @@ getLab (ConT n)   = return $ ConT $ nameLab n
 getLab _          = fail "When deriving multi-sorted compositional data type, found unsupported type in AST."
 
 nameLab :: Name -> Name
-nameLab n = mkName $ nameBase n ++ "L"
+nameLab = modNameBase (++"L")
+
+smartConstrName :: Name -> Name
+smartConstrName = modNameBase ('i':)
+
+modNameBase :: (String -> String) -> Name -> Name
+modNameBase f = mkName . f . nameBase

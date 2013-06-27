@@ -1,6 +1,5 @@
 module Tarski.Data.Comp.Trans.Collect (
-    collectTypes,
-    mapSetM
+    collectTypes
   ) where
 
 import Control.Monad ( liftM, liftM2 )
@@ -15,9 +14,9 @@ import Language.Haskell.TH.ExpandSyns ( expandSyns )
 
 import Tarski.Data.Comp.Trans.Names ( standardNameSet )
 
-collectTypes :: Name -> Q (Set Name)
-collectTypes n = liftM2 difference (fixpoint collectTypes' n)
-                                   (return standardNameSet)
+collectTypes :: Name -> Q [Name]
+collectTypes n = do names <- fixpoint collectTypes' n
+                    return $ toList $ difference names standardNameSet
 
 fixpoint :: (Ord a, Monad m) => (a -> m (Set a)) -> a -> m (Set a)
 fixpoint f x = run $ singleton x
