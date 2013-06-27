@@ -1,12 +1,14 @@
 module Tarski.Data.Comp.Trans.Names (
     standardNameSet,
     baseTypes,
-    transName,
     getLab,
+    transName,
     nameLab,
     smartConstrName,
     modNameBase
   ) where
+
+import Control.Monad ( liftM2 )
 
 import Data.Functor ( (<$>) )
 import Data.Set ( Set, fromList )
@@ -38,16 +40,18 @@ baseTypes = [ ConT ''Int
             , AppT ListT (ConT ''Char)
             ]
 
-transName :: Name -> Name
-transName = mkName . nameBase
-
 
 getLab :: Type -> Q Type
+getLab (AppT f@(AppT _ _) t) = liftM2 AppT (getLab f) (getLab t)
 getLab (AppT f t) = AppT f <$> getLab t
 getLab ListT      = return ListT
 getLab (TupleT n) = return $ TupleT n
 getLab (ConT n)   = return $ ConT $ nameLab n
 getLab _          = fail "When deriving multi-sorted compositional data type, found unsupported type in AST."
+
+
+transName :: Name -> Name
+transName = modNameBase id
 
 nameLab :: Name -> Name
 nameLab = modNameBase (++"L")
