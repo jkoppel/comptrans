@@ -26,7 +26,7 @@ mkGADT n cons = do e <- newName "e"
                    i <- newName "i"
                    let n' = transName n
                    cons' <- mapM (mkCon n' e i) cons
-                   return $ [DataD [] n' [PlainTV e, PlainTV i] cons' []
+                   return $ [DataD [] n' [KindedTV e (AppT (AppT ArrowT StarT) StarT), PlainTV i] cons' []
                             ,DataD [] (nameLab n) [] [] []
                             ]
 
