@@ -1,0 +1,36 @@
+Name:                comptrans
+Version:             0.1.0.0
+Synopsis:            
+Description:         
+License:             AllRightsReserved
+License-File:        LICENSE
+Author:              James Koppel
+Copyright:           2013 Tarski Technologies
+Category:            Data
+Build-type:          Simple
+Cabal-version:       >=1.8
+
+Library
+
+  Extensions:
+    EmptyDataDecls
+    FlexibleInstances
+    GADTs
+    TemplateHaskell
+    TypeSynonymInstances
+
+  Ghc-Options:
+    -Wall
+
+  Exposed-Modules:     
+                       Main
+                       Tarski.Data.Comp.Trans.Collect
+                       Tarski.Data.Comp.Trans.DeriveMulti
+                       Tarski.Data.Comp.Trans.DeriveTrans
+  Other-Modules:       
+  Build-Depends:       base ==4.6.*,
+                       containers <= 0.6,
+                       lens <= 3.10,
+                       template-haskell,
+                       th-expand-syns <= 0.4,
+                       language-java
