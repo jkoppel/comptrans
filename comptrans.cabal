@@ -37,4 +37,3 @@ Library
                      , lens <= 3.10
                      , template-haskell
                      , th-expand-syns <= 0.4
-                     , language-java
