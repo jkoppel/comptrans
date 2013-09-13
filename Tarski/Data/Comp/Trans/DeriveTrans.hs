@@ -6,6 +6,37 @@ import Language.Haskell.TH
 
 import Tarski.Data.Comp.Trans.Names ( baseTypes, smartConstrName, nameLab, simplifyDataInf )
 
+-- |
+-- Creates a functions translating from an ADT
+-- to its isomorphic multi-sorted compositional data type
+-- 
+-- @
+-- import qualified Foo as F
+-- ...
+-- type ArithTerm = Term Arith
+-- deriveTrans ''Arith [''Arith, ''Atom, ''Lit] ArithTerm
+-- @
+-- 
+-- will create
+-- 
+-- @
+-- translate :: F.Arith -> ArithTerm ArithL
+-- translate = trans
+-- 
+-- 
+-- class Trans a l where
+--   trans a -> ArithTerm l
+-- 
+-- instance Trans F.Arith ArithL where
+--   trans (F.Add x y) = iAdd (trans x) (trans y)
+-- 
+-- instance Trans F.Atom AtomL where
+--   trans (F.Var s)   = iVar s
+--   trans (F.Const x) = iConst (trans x)
+-- 
+-- instance Trans F.Lit LitL where
+--   trans (F.Lit n) = iLit n
+-- @
 deriveTrans :: Name -> [Name] -> Type -> Q [Dec]
 deriveTrans root names term = do let classNm = mkName "Trans"
                                  funNm <- newName "trans"
@@ -16,13 +47,13 @@ deriveTrans root names term = do let classNm = mkName "Trans"
 
                                  return $ [classDec] ++ funDec ++ instances
 
-{-
-   Really wanted to use quasiquotes, but could not antiquote name in signature
-
-  Example:
-  translate :: J.CompilationUnit -> JavaTerm CompilationUnitL
-  translate = trans
--}
+-- |
+-- Example:
+-- 
+-- @
+-- translate :: J.CompilationUnit -> JavaTerm CompilationUnitL
+-- translate = trans
+-- @
 mkFunc :: Name -> Name -> Type -> Q [Dec]
 mkFunc typ funNm term = return [ SigD translate (AppT (AppT ArrowT (ConT typ)) (AppT term lab))
                                , ValD (VarP translate) (NormalB funNm') []
@@ -32,20 +63,26 @@ mkFunc typ funNm term = return [ SigD translate (AppT (AppT ArrowT (ConT typ)) (
     lab = ConT $ nameLab typ
     funNm' = VarE funNm
 
-{-
-  class Trans a l where
-    trans a -> JavaTerm l
--}
+-- |
+-- Example:
+-- 
+-- @
+-- class Trans a l where
+--   trans a -> JavaTerm l
+-- @
 mkClass :: Name -> Name -> Type -> Q Dec
 mkClass classNm funNm term = do a <- newName "a"
                                 i <- newName "i"
                                 let transDec = SigD funNm (foldl AppT ArrowT [VarT a, AppT term (VarT i)])
                                 return $ ClassD [] classNm [PlainTV a, PlainTV i] [] [transDec]
 
-{-
-  instance Trans J.CompilationUnit CompilationUnitL where
-    trans (J.CompilationUnit x y z) = iCompilationUnit (trans x) (trans y) (trans z)
--}
+-- |
+-- Example:
+-- 
+-- @
+-- instance Trans J.CompilationUnit CompilationUnitL where
+--   trans (J.CompilationUnit x y z) = iCompilationUnit (trans x) (trans y) (trans z)
+-- @
 mkInstance :: Name -> Name -> Name -> Q Dec
 mkInstance classNm funNm typNm = do inf <- reify typNm
                                     nmTyps <- simplifyDataInf inf

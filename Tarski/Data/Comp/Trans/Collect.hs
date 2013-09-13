@@ -14,10 +14,14 @@ import Language.Haskell.TH.ExpandSyns ( expandSyns )
 
 import Tarski.Data.Comp.Trans.Names ( standardNameSet )
 
+-- | Finds all type names transitively referred to by a given type,
+-- removing standard types
 collectTypes :: Name -> Q [Name]
 collectTypes n = do names <- fixpoint collectTypes' n
                     return $ toList $ difference names standardNameSet
 
+-- |
+-- Finds the fixpoint of a monotone monadic function using chaotic iteration
 fixpoint :: (Ord a, Monad m) => (a -> m (Set a)) -> a -> m (Set a)
 fixpoint f x = run $ singleton x
   where
@@ -27,6 +31,7 @@ fixpoint f x = run $ singleton x
                 else
                  run s'
 
+-- | mapM for Data.Set
 mapSetM :: (Monad m, Ord b) => (a -> m b) -> Set a -> m (Set b)
 mapSetM f x = liftM (mconcat . map singleton) $ mapM f (toList x)
 

@@ -13,20 +13,56 @@ import Tarski.Data.Comp.Trans.Names ( baseTypes, transName, nameLab, simplifyDat
 --------------------------------------------------------------------------------
 
 
-{-
-  ATM, due to phase issues, callers will need to liftSum manually.
--}
+-- |
+-- Creates an @untranslate@ function inverting the @translate@ function
+-- created by @deriveTrans@.
+-- 
+-- @
+-- import qualified Foo as F
+-- type ArithTerm = Term (Arith :+: Atom :+: Lit)
+-- deriveUntrans [''F.Arith, ''F.Atom, ''F.Lit] (TH.ConT ''ArithTerm)
+-- @
+-- 
+-- will create
+-- 
+-- @
+-- type family Targ l
+-- newtype T l = T {t :: Targ l}
+-- 
+-- class Untrans f where
+--   untrans :: Alg f t
+-- 
+-- untranslate :: ArithTerm l -> Targ l
+-- untranslate = t . cata untrans
+-- 
+-- type instance Targ ArithL = F.Arith
+-- instance Untrans Arith where
+--   untrans (Add x y) = T $ F.Add (t x) (t y)
+-- 
+-- type instance Targ AtomL = F.Atom
+-- instance Untrans Atom where
+--   untrans (Var s)   = T $ F.Var s
+--   untrans (Const x) = T $ F.Const (t x)
+-- 
+-- type instance Targ LitL = F.Lit
+-- instance Untrans Lit where
+--   untrans (Lit n) = T $ F.Lit n
+-- @
+-- 
+-- Note that you will need to manually provide an instance @(Untrans f, Untrans g) => Untrans (f :+: g)@
+-- due to phase issues.
 deriveUntrans :: [Name] -> Type -> Q [Dec]
 deriveUntrans names term = do targDec <- mkTarg targNm
                               wrapperDec <- mkWrapper wrapNm unwrapNm targNm
                               fnDec <- mkFn untranslateNm term targNm unwrapNm fnNm
                               classDec <- mkClass classNm fnNm wrapNm
                               instances <- liftM concat $ mapM (mkInstance classNm fnNm wrapNm unwrapNm targNm) names
-                              return $ targDec
-                                    ++ wrapperDec
-                                    ++ fnDec
-                                    ++ classDec
-                                    ++ instances
+                              return $ concat [ targDec
+                                              , wrapperDec
+                                              , fnDec
+                                              , classDec
+                                              , instances
+                                              ]
   where
     targNm = mkName "Targ"
     wrapNm = mkName "T"
