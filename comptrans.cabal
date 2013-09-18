@@ -13,17 +13,30 @@ Cabal-version:       >=1.8
 Library
 
   Extensions:
+    DeriveGeneric
     EmptyDataDecls
+    FlexibleContexts
     FlexibleInstances
+    FunctionalDependencies
     GADTs
+    KindSignatures
+    MultiParamTypeClasses
+    OverlappingInstances
     TemplateHaskell
+    TypeFamilies
+    TypeOperators
     TypeSynonymInstances
+    UndecidableInstances
 
   Ghc-Options:
     -Wall
 
   Exposed-Modules:     
+                       Tarski.Data.Comp.Derive.Generic
                        Tarski.Data.Comp.Trans
+
+                       Tarski.Data.Comp.Derive.GenericExample
+
   Other-Modules:       
                        Tarski.Data.Comp.Trans.Collect
                        Tarski.Data.Comp.Trans.DeriveMulti
@@ -37,3 +50,6 @@ Library
                      , lens <= 3.10
                      , template-haskell
                      , th-expand-syns <= 0.4
+
+                     , deepseq
+                     , deepseq-generics >= 0.1.1

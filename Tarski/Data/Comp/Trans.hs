@@ -17,22 +17,25 @@ module Tarski.Data.Comp.Trans (
   , generateNameLists
   , makeSumType
 
+  , getLabels
+
   , T.deriveTrans
   , U.deriveUntrans
   ) where
 
-import Control.Monad ( liftM )
+import Control.Monad ( liftM, mapM )
 
 import Data.Comp.Multi ( (:+:) )
+import Data.Data ( Data )
 
 import Language.Haskell.TH.Quote ( dataToExpQ )
 import Language.Haskell.TH
 
 import qualified Tarski.Data.Comp.Trans.DeriveTrans as T
 import qualified Tarski.Data.Comp.Trans.DeriveUntrans as U
-import Tarski.Data.Comp.Trans.DeriveMulti ( deriveMulti )
-import Tarski.Data.Comp.Trans.Collect ( collectTypes )
-import Tarski.Data.Comp.Trans.Names ( transName )
+import Tarski.Data.Comp.Trans.DeriveMulti
+import Tarski.Data.Comp.Trans.Collect
+import Tarski.Data.Comp.Trans.Names
 
 
 -- |
@@ -60,7 +63,7 @@ import Tarski.Data.Comp.Trans.Names ( transName )
 --   Var :: String -> Atom e AtomL
 --   Const :: e LitL -> Atom e AtomL
 -- 
--- data Lit e l where
+-- data Lit (e :: * -> *) l where
 --   Lit :: Int -> Lit e LitL
 -- @
 deriveMultiComp :: Name -> Q [Dec]
@@ -80,20 +83,29 @@ deriveMultiComp root = do descs <- collectTypes root
 -- @
 -- origASTTypes = [mkName "Foo.Arith", mkName "Foo.Atom", mkName "Foo.Lit"]
 -- newASTTypes  = [mkName "Arith", mkName "Atom", mkName "Lit"]
+-- newASTLabels = map ConT [mkName "ArithL", mkName "AtomL', mkName "LitL"]
 -- @
 generateNameLists :: Name -> Q [Dec]
-generateNameLists root = do descs <- collectTypes root
-                            nameList1 <- mkNameList (mkName "origASTTypes") descs
-                            nameList2 <- mkNameList (mkName "newASTTypes") (map transName descs) 
+generateNameLists root = do
+    descs <- collectTypes root
+    nameList1 <- mkList ''Name (mkName "origASTTypes") descs
+    nameList2 <- mkList ''Name (mkName "newASTTypes") (map transName descs)
 
-                            return $ nameList1 ++ nameList2
-
-mkNameList :: Name -> [Name] -> Q [Dec]
-mkNameList name contents = sequence [ sigD name (appT listT (conT ''Name))
-                                    , valD (varP name) (normalB namesExp) []
-                                    ]
+    return $ nameList1 ++ nameList2
   where
-    namesExp = dataToExpQ (const Nothing) contents
+
+    mkList :: Data t => Name -> Name -> [t] -> Q [Dec]
+    mkList tNm name contents = sequence [ sigD name (appT listT (conT tNm))
+                                        , valD (varP name) (normalB namesExp) []
+                                        ]
+      where
+        namesExp = dataToExpQ (const Nothing) contents
+
+getLabels :: [Name] -> Q [Type]
+getLabels nms = mapM toLabel nms
+  where
+    toLabel n = do TyConI (DataD _ n' _ _ _) <- reify $ nameLab n
+                   return $ ConT n'
 
 -- |
 -- Folds together names with @(`:+:`)@.

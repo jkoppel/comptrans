@@ -65,5 +65,5 @@ instance ExtractNames Type where
   extractNames tSyn = do t <- expandSyns tSyn
                          case t of 
                            AppT a b -> liftM2 (++) (extractNames a) (extractNames b)
-                           ConT n   -> return [n]  
+                           ConT n   -> return [n]
                            _        -> return []

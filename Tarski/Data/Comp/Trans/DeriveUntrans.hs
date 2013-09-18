@@ -120,7 +120,7 @@ mkClass classNm funNm newtpNm = do f <- newName "f"
 -}
 mkInstance :: Name -> Name -> Name -> Name -> Name -> Name -> Q [Dec]
 mkInstance classNm funNm wrap unwrap targNm typNm = do inf <- reify typNm
-                                                       nmTyps <- simplifyDataInf inf
+                                                       let nmTyps = simplifyDataInf inf
                                                        clauses <- mapM (uncurry $ mkClause wrap unwrap) nmTyps
                                                        return [ famInst
                                                               , inst clauses

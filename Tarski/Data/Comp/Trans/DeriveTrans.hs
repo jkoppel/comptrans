@@ -1,4 +1,5 @@
-module Tarski.Data.Comp.Trans.DeriveTrans (
+module Tarski.Data.Comp.Trans.DeriveTrans
+  (
     deriveTrans
   ) where
 
@@ -85,7 +86,7 @@ mkClass classNm funNm term = do a <- newName "a"
 -- @
 mkInstance :: Name -> Name -> Name -> Q Dec
 mkInstance classNm funNm typNm = do inf <- reify typNm
-                                    nmTyps <- simplifyDataInf inf
+                                    let nmTyps = simplifyDataInf inf
                                     clauses <- mapM (uncurry $ mkClause funNm) nmTyps
                                     let targNm = nameLab typNm
                                     return (InstanceD []
