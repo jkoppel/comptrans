@@ -48,6 +48,6 @@ Library
                      , lens <= 3.10
                      , template-haskell
                      , th-expand-syns <= 0.4
-		     , ghc-prim 
+                     , ghc-prim 
                      , deepseq
                      , deepseq-generics >= 0.1.1
