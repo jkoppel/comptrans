@@ -46,7 +46,7 @@ Library
                      , compdata <= 0.8
                      , containers <= 0.6
                      , lens <= 3.10
-                     , template-haskell
+                     , template-haskell >= 2.8 && < 2.9
                      , th-expand-syns <= 0.4
                      , ghc-prim 
                      , deepseq
