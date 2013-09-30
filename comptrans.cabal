@@ -42,7 +42,7 @@ Library
                        Tarski.Data.Comp.Trans.DeriveUntrans
                        Tarski.Data.Comp.Trans.Names
 
-  Build-Depends:       base ==4.6.*
+  Build-Depends:       base >=4.4 && < 4.7
                      , compdata <= 0.8
                      , containers <= 0.6
                      , lens <= 3.10
