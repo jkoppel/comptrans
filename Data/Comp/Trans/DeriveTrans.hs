@@ -1,11 +1,11 @@
-module Tarski.Data.Comp.Trans.DeriveTrans
+module Data.Comp.Trans.DeriveTrans
   (
     deriveTrans
   ) where
 
 import Language.Haskell.TH
 
-import Tarski.Data.Comp.Trans.Names ( baseTypes, smartConstrName, nameLab, simplifyDataInf )
+import Data.Comp.Trans.Names ( baseTypes, smartConstrName, nameLab, simplifyDataInf )
 
 -- |
 -- Creates a functions translating from an ADT

@@ -1,4 +1,4 @@
-module Tarski.Data.Comp.Trans.Names
+module Data.Comp.Trans.Names
   (
     standardNameSet
   , baseTypes

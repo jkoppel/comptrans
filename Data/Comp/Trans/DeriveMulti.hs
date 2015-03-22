@@ -1,4 +1,4 @@
-module Tarski.Data.Comp.Trans.DeriveMulti (
+module Data.Comp.Trans.DeriveMulti (
     deriveMulti
   ) where
 
@@ -10,7 +10,7 @@ import Data.Functor ( (<$>) )
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.ExpandSyns ( expandSyns )
 
-import Tarski.Data.Comp.Trans.Names ( baseTypes, transName, nameLab, getLab )
+import Data.Comp.Trans.Names ( baseTypes, transName, nameLab, getLab )
 
 deriveMulti :: Name -> Q [Dec]
 deriveMulti n = do inf <- reify n

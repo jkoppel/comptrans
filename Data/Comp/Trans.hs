@@ -12,7 +12,7 @@
 -- data Atom = Var String | Const Lit
 -- data Lit = Lit Int
 -- @
-module Tarski.Data.Comp.Trans (
+module Data.Comp.Trans (
     deriveMultiComp
   , generateNameLists
   , makeSumType
@@ -31,11 +31,11 @@ import Data.Data ( Data )
 import Language.Haskell.TH.Quote ( dataToExpQ )
 import Language.Haskell.TH
 
-import qualified Tarski.Data.Comp.Trans.DeriveTrans as T
-import qualified Tarski.Data.Comp.Trans.DeriveUntrans as U
-import Tarski.Data.Comp.Trans.DeriveMulti
-import Tarski.Data.Comp.Trans.Collect
-import Tarski.Data.Comp.Trans.Names
+import qualified Data.Comp.Trans.DeriveTrans as T
+import qualified Data.Comp.Trans.DeriveUntrans as U
+import Data.Comp.Trans.DeriveMulti
+import Data.Comp.Trans.Collect
+import Data.Comp.Trans.Names
 
 
 -- |

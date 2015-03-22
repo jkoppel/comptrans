@@ -2,13 +2,12 @@ Name:                comptrans
 Version:             0.1.0.0
 Synopsis:            
 Description:         
-License:             AllRightsReserved
+License:             BSD3
 License-File:        LICENSE
 Author:              James Koppel
-Copyright:           2013 Tarski Technologies
-Category:            Data
+Category:            Data,Generics
 Build-type:          Simple
-Cabal-version:       >=1.8
+Cabal-version:       >=1.9.2
 
 Library
 
@@ -32,20 +31,20 @@ Library
     -Wall
 
   Exposed-Modules:     
-                       Tarski.Data.Comp.Derive.Generic
-                       Tarski.Data.Comp.Trans
+                       Data.Comp.Derive.Generic
+                       Data.Comp.Trans
 
   Other-Modules:       
-                       Tarski.Data.Comp.Trans.Collect
-                       Tarski.Data.Comp.Trans.DeriveMulti
-                       Tarski.Data.Comp.Trans.DeriveTrans
-                       Tarski.Data.Comp.Trans.DeriveUntrans
-                       Tarski.Data.Comp.Trans.Names
+                       Data.Comp.Trans.Collect
+                       Data.Comp.Trans.DeriveMulti
+                       Data.Comp.Trans.DeriveTrans
+                       Data.Comp.Trans.DeriveUntrans
+                       Data.Comp.Trans.Names
 
-  Build-Depends:       base ==4.6.*
-                     , compdata <= 0.8
+  Build-Depends:       base >= 4.7, base < 5
+                     , compdata < 1
                      , containers <= 0.6
-                     , lens <= 3.10
+                     , lens < 5
                      , template-haskell
                      , th-expand-syns <= 0.4
 

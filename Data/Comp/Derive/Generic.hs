@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-} -- It warns for the instance declarations in TH which are never directly compiled -- GAH
 
-module Tarski.Data.Comp.Derive.Generic
+module Data.Comp.Derive.Generic
   (
     makeGeneric
   , makeInstancesLike
@@ -19,7 +19,7 @@ import GHC.Generics ( Generic(..), (:*:)(..), (:+:)(..), K1(..), V1, Rec0, U1(..
 
 import Language.Haskell.TH
 
-import Tarski.Data.Comp.Trans.Names
+import Data.Comp.Trans.Names
 
 --------------------------------------------------------------------------------
 -- Generic instances for general CDTs

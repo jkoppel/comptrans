@@ -1,4 +1,4 @@
-module Tarski.Data.Comp.Trans.Collect (
+module Data.Comp.Trans.Collect (
     collectTypes
   ) where
 
@@ -12,7 +12,7 @@ import Data.Set as Set ( Set, singleton, union, difference, toList, member, empt
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.ExpandSyns ( expandSyns )
 
-import Tarski.Data.Comp.Trans.Names ( standardNameSet )
+import Data.Comp.Trans.Names ( standardNameSet )
 
 -- | Finds all type names transitively referred to by a given type,
 -- removing standard types

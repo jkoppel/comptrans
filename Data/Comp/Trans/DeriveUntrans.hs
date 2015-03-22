@@ -1,4 +1,4 @@
-module Tarski.Data.Comp.Trans.DeriveUntrans (
+module Data.Comp.Trans.DeriveUntrans (
     deriveUntrans
   ) where
 
@@ -8,7 +8,7 @@ import Data.Comp.Multi ( Alg, cata )
 
 import Language.Haskell.TH
 
-import Tarski.Data.Comp.Trans.Names ( baseTypes, transName, nameLab, simplifyDataInf )
+import Data.Comp.Trans.Names ( baseTypes, transName, nameLab, simplifyDataInf )
 
 --------------------------------------------------------------------------------
 
@@ -126,7 +126,7 @@ mkInstance classNm funNm wrap unwrap targNm typNm = do inf <- reify typNm
                                                               , inst clauses
                                                               ]
   where
-    famInst = TySynInstD targNm [ConT $ nameLab typNm] (ConT typNm)
+    famInst = TySynInstD targNm (TySynEqn [ConT $ nameLab typNm] (ConT typNm))
 
     inst clauses =  InstanceD []
                               (AppT (ConT classNm) (ConT (transName typNm)))
