@@ -41,12 +41,13 @@ Library
                        Data.Comp.Trans.DeriveUntrans
                        Data.Comp.Trans.Names
 
+<<<<<<< HEAD
   Build-Depends:       base >= 4.7, base < 5
                      , compdata < 1
                      , containers <= 0.6
                      , lens < 5
                      , template-haskell
                      , th-expand-syns <= 0.4
-
-                     , deepseq
-                     , deepseq-generics >= 0.1.1
+                     , ghc-prim >= 0.2
+                     , deepseq < 1.4
+                     , deepseq-generics < 0.1.2
