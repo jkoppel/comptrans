@@ -22,6 +22,10 @@ Category:            Data,Generics
 Build-type:          Simple
 Cabal-version:       >=1.9.2
 
+Source-Repository head
+  Type:      git
+  Location:  https://github.com/jkoppel/comptrans
+
 Library
 
   Extensions:
