@@ -1,3 +1,7 @@
+-- |
+-- Allows you to derive instances of GHC.Generics for compositional data types.
+-- Warning: May slaughter your compile times.
+
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns #-} -- TH runs at compile time, so you get compile-time errors anyway
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-} -- It warns for the instance declarations in TH which are never directly compiled -- GAH
