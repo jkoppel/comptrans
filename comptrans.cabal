@@ -1,7 +1,6 @@
 Name:                comptrans
-Version:             0.1.0.4
+Version:             0.1.0.5
 Synopsis:            
-Description:         
 License:             BSD3
 License-File:        LICENSE
 Author:              James Koppel
@@ -66,5 +65,5 @@ Library
                      , template-haskell
                      , th-expand-syns <= 0.4
                      , ghc-prim >= 0.2
-                     , deepseq < 1.4
+                     , deepseq < 1.5
                      , deepseq-generics < 0.1.2
