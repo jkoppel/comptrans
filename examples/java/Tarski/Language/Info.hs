@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
@@ -38,7 +39,6 @@ module Tarski.Language.Info
   , mkCSLabelGen
   , mkTrivialLabelGen
   , nextLabel
-  , splitLabelGen
   , annotateLabel
   , refreshLabel
   , annotateNonlabel
@@ -47,12 +47,13 @@ module Tarski.Language.Info
   ) where
 
 import Control.Concurrent.Supply ( Supply, newSupply, freshId, splitSupply )
-import Control.DeepSeq.Generics ( NFData(..), genericRnf )
-import Control.Lens ( Lens', (&), (.~), (^.) )
+import Control.DeepSeq ( NFData(..) )
+import Control.DeepSeq.Generics ( genericRnf )
+import Control.Lens ( Lens', (&), (.~), (^.), use, (.=) )
 import Control.Lens.TH ( makeClassy, makeLenses )
 import Control.Monad ( liftM2 )
 import Control.Monad.IO.Class ( MonadIO(..) )
-import Control.Monad.State ( MonadState, state, evalState  )
+import Control.Monad.State ( MonadState, StateT(..), state, evalState  )
 
 import Data.Binary ( Binary )
 import Data.Comp.Multi ( HFunctor, Term, unTerm, (:=>), CxtFun, CxtFunM, appSigFunM, DistAnn, RemA, injectA, projectA, stripA )
@@ -65,8 +66,6 @@ import Data.Typeable ( Typeable )
 import GHC.Generics ( Generic )
 
 import Language.Haskell.TH.Syntax ( Q, location, Loc(..), CharPos )
-
-import Tarski.Lens
 
 --------------------------------------------------------------------------------
 -- Meta-info about a program for GP
@@ -156,13 +155,21 @@ class HasLabelGen s where
 instance HasLabelGen LabelGen where
   labelGen = id
 
+-- | Allows embedding a smaller state inside a larger one
+-- This has major advantages over 'Control.Lens.Zoom.zoom' in
+-- that it doesn't require an explicit monad stack.
+--
+-- However, it runs the risk of behavior changing due to noncommutative
+-- monad transformers (accessed via e.g.: @lift . put@), and is incompatible
+-- with RWST.
+zoom :: (MonadState s m) => Lens' s t -> StateT t m a -> m a
+zoom f m = do s <- use f
+              (a, s') <- runStateT m s
+              f .= s'
+              return a
+
 nextLabel :: (MonadState s m, HasLabelGen s) => m Label
 nextLabel = zoom labelGen $ state (\(LabelGen g) -> genLabel g)
-
--- Tried to make as instance of MonadSplit, but had overlapping instance complaints.
--- Besides, I have yet to find or discover a need for this operation to be a typeclass
-splitLabelGen :: (MonadState s m, HasLabelGen s) => m LabelGen
-splitLabelGen = zoom labelGen $ state (\(LabelGen g) -> split g)
 
 --------------------------------------------------------------------------------
 

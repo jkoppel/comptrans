@@ -5,7 +5,6 @@ module Data.Comp.Trans.Collect (
 import Control.Monad ( liftM, liftM2 )
 
 import Data.Foldable ( fold )
-import Data.Monoid ( Monoid(..) )
 
 import Data.Set as Set ( Set, singleton, union, difference, toList, member, empty )
 

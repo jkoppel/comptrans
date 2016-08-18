@@ -9,12 +9,13 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
+
+{-# OPTIONS_GHC -fcontext-stack=120 #-}
 
 -- This is a separate file due to GHC's phase restriction
 
@@ -69,16 +70,16 @@ newtype WrapTerm f l = WrapTerm { unwrapTerm :: Term f l }
 class LiftJavaProj f g where
   liftJavaProj' :: Alg f (WrapTerm g)
 
-instance (LiftJavaProj f g, LiftJavaProj f' g) => LiftJavaProj (f :+: f') g where
+instance {-# OVERLAPPING #-} (LiftJavaProj f g, LiftJavaProj f' g) => LiftJavaProj (f :+: f') g where
   liftJavaProj' = caseH liftJavaProj' liftJavaProj'
 
-instance (HFunctor f, f :<: g) => LiftJavaProj f g where
+instance {-# OVERLAPPABLE #-} (HFunctor f, f :<: g) => LiftJavaProj f g where
   liftJavaProj' = WrapTerm . inject . hfmap unwrapTerm
 
-instance LiftJavaProj CompilationUnitIsTop JavaSig where
+instance {-# OVERLAPPING #-} LiftJavaProj CompilationUnitIsTop JavaSig where
   liftJavaProj' = error "Found CompilationUnitIsTop when lowering Java project to term"
 
-instance LiftJavaProj SourceFile JavaSig where
+instance {-# OVERLAPPING #-} LiftJavaProj SourceFile JavaSig where
   liftJavaProj' = error "Found SourceFile when lowering Java project to term"
 
 liftJavaProj :: JavaTerm l -> JavaProj l

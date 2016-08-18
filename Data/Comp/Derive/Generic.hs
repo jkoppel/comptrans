@@ -169,10 +169,10 @@ extractLab tp par = go tp
     -- examples where GHC substituted away equality constraints
     -- when getting the type of a data con; assumed it always did,
     -- and now paying the price.
-    substCxt [] t                         = t
-    substCxt (EqualP (VarT n) t' : ctx) t = substCxt ctx (tsubst t' n t)
-    substCxt (EqualP t' (VarT n) : ctx) t = substCxt ctx (tsubst t' n t)
-    substCxt (_ : ctx) t                  = substCxt ctx t
+    substCxt [] t                                        = t
+    substCxt (AppT (AppT EqualityT (VarT n)) t' : ctx) t = substCxt ctx (tsubst t' n t)
+    substCxt (AppT (AppT EqualityT t') (VarT n) : ctx) t = substCxt ctx (tsubst t' n t)
+    substCxt (_ : ctx) t                                 = substCxt ctx t
     
     tsubst t n (AppT l r) = AppT (tsubst t n l) (tsubst t n r)
     tsubst t n (VarT n')

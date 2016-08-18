@@ -41,11 +41,12 @@ import Control.Monad ( liftM, liftM2 )
 import Data.Comp.Multi ( (:<:), (:+:), (:&:), Cxt(..), K(..), unK, inject, caseH, RemA(..) )
 import Data.Comp.Multi.Derive ( derive, makeHFunctor, makeHTraversable, makeHFoldable, makeEqHF, makeShowHF, makeOrdHF )
 
+import Data.Comp.Multi.Strategy.Classification
+
 import Data.Type.Equality ( (:~:)(..) )
 
 import qualified GHC.Generics as G
 
-import Tarski.Language.Parametric.Classification
 import Tarski.Language.Parametric.InjF
 
 --------------------------------------------------------------------------------

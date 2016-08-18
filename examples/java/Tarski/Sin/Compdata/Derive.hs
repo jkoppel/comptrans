@@ -18,6 +18,7 @@ import Control.Monad
 
 import Data.Comp.Multi.Sum
 import Data.Comp.Multi.Term
+import Data.Comp.Multi.Strategy.Classification ( KDynCase, kdyncase )
 import Data.List ( nub )
 import Data.Maybe ( catMaybes )
 import Data.Type.Equality ( (:~:)(..) )
@@ -27,7 +28,6 @@ import Language.Haskell.TH.ExpandSyns
 import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Syntax hiding ( Cxt )
 
-import Tarski.Language.Parametric.Classification ( KDynCase, kdyncase )
 import Tarski.Language.Parametric.InjF ( InjF, injectF )
 
 smartFConstructors :: Name -> Q [Dec]
@@ -38,7 +38,7 @@ smartFConstructors fname = do
     liftM concat $ mapM (genSmartConstr (map tyVarBndrName targs) tname) cons
         where iTp iVar (ForallC _ cxt _) =
                   -- Check if the GADT phantom type is constrained
-                  case [y | EqualP x y <- cxt, x == VarT iVar] of
+                  case [y | AppT (AppT EqualityT x) y <- cxt, x == VarT iVar] of
                     [] -> Nothing
                     tp:_ -> Just tp
               iTp _ _ = Nothing
@@ -85,7 +85,7 @@ makeDynCase fname = do
        iTp :: Name -> Con -> Maybe Type
        iTp iVar (ForallC _ cxt _) =
          -- Check if the GADT phantom type is constrained
-         case [y | EqualP x y <- cxt, x == VarT iVar] of
+         case [y | AppT (AppT EqualityT x) y <- cxt, x == VarT iVar] of
            [] -> Nothing
            tp:_ -> Just tp
        iTp _ _ = Nothing

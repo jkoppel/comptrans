@@ -5,8 +5,6 @@ module Data.Comp.Trans.DeriveMulti (
 import Control.Lens ( traverse, _1, _2, _3, (&), (%~), (%%~) )
 import Control.Monad ( liftM )
 
-import Data.Functor ( (<$>) )
-
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.ExpandSyns ( expandSyns )
 
@@ -33,13 +31,13 @@ mkGADT n cons = do e <- newName "e"
 mkCon :: Name -> Name -> Name -> Con -> Q Con
 mkCon l e i (NormalC n sts) = ForallC [] ctx <$> inner
   where
-    ctx = [EqualP (VarT i) (ConT $ nameLab l)]
+    ctx = [foldl AppT EqualityT [(VarT i), (ConT $ nameLab l)]]
 
     sts'  = sts & (traverse._2) %%~ unfixType e
     inner = liftM (NormalC (transName n)) sts'
 mkCon l e i (RecC n vsts) = ForallC [] ctx <$> inner
   where
-    ctx = [EqualP (VarT i) (ConT $ nameLab l)]
+    ctx = [foldl AppT EqualityT [(VarT i), (ConT $ nameLab l)]]
 
     vsts'  = vsts & (traverse._1) %~ transName
     vsts'' = vsts' & (traverse._3) %%~ unfixType e
