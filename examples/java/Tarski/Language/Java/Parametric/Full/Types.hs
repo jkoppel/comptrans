@@ -35,6 +35,7 @@ import Tarski.SCM.Src hiding ( project )
 ------------------------------------------------------------
 
 data Label = Label !Int
+           | Nonlabel
   deriving (Eq, Ord, Read, Show)
 
 -----------------------------------------------------------
