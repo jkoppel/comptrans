@@ -5,7 +5,7 @@ module Data.Comp.Trans.DeriveTrans
 
 import Language.Haskell.TH
 
-import Data.Comp.Trans.Names ( baseTypes, smartConstrName, nameLab, simplifyDataInf )
+import Data.Comp.Trans.Util ( baseTypes, smartConstrName, nameLab, simplifyDataInf )
 
 -- |
 -- Creates a functions translating from an ADT

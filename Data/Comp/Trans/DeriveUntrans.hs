@@ -8,7 +8,7 @@ import Data.Comp.Multi ( Alg, cata )
 
 import Language.Haskell.TH
 
-import Data.Comp.Trans.Names ( baseTypes, transName, nameLab, simplifyDataInf )
+import Data.Comp.Trans.Util ( baseTypes, transName, nameLab, simplifyDataInf )
 
 --------------------------------------------------------------------------------
 

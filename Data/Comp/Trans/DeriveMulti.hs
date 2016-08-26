@@ -2,33 +2,40 @@ module Data.Comp.Trans.DeriveMulti (
     deriveMulti
   ) where
 
-import Control.Lens ( traverse, _1, _2, _3, (&), (%~), (%%~) )
+import Control.Lens ( _1, _2, _3, (&), (%~), (%%~) )
 import Control.Monad ( liftM )
+import Control.Monad.Trans ( MonadTrans(lift) )
 
-import Language.Haskell.TH.Syntax
+import Data.Map ( Map )
+
+import Language.Haskell.TH.Syntax hiding ( lift )
 import Language.Haskell.TH.ExpandSyns ( expandSyns )
 
-import Data.Comp.Trans.Names ( baseTypes, transName, nameLab, getLab )
+import Data.Comp.Trans.Util ( CompTrans, baseTypes, transName, nameLab, getLab, getNames, containsAll, applySubsts )
 
-deriveMulti :: Name -> Q [Dec]
-deriveMulti n = do inf <- reify n
-                   case inf of
-                     TyConI (DataD _ nm [] cons _)   -> mkGADT nm cons
-                     TyConI (NewtypeD _ nm [] con _) -> mkGADT nm [con]
-                     _                         -> do reportError $ "Attempted to derive multi-sorted compositional data type for "
-                                                                    ++ show n ++ ", which is not a nullary datatype"
-                                                     return []
+deriveMulti :: Map Name Type -> Name -> CompTrans [Dec]
+deriveMulti substs n = do
+  inf <- lift $ reify n
+  case inf of
+    TyConI (DataD _ nm xs cons _)
+      | containsAll substs (getNames xs) -> mkGADT nm (applySubsts substs cons)
+    TyConI (NewtypeD _ nm xs con _)
+      | containsAll substs (getNames xs) -> mkGADT nm [(applySubsts substs con)]
+    _                                  -> do lift $ reportError $ "Attempted to derive multi-sorted compositional data type for " ++ show n
+                                                                  ++ ", which is not a nullary datatype (and does not have concrete values supplied for type args)"
+                                             return []
 
-mkGADT :: Name -> [Con] -> Q [Dec]
-mkGADT n cons = do e <- newName "e"
-                   i <- newName "i"
-                   let n' = transName n
-                   cons' <- mapM (mkCon n' e i) cons
-                   return $ [DataD [] n' [KindedTV e (AppT (AppT ArrowT StarT) StarT), PlainTV i] cons' []
-                            ,DataD [] (nameLab n) [] [] []
-                            ]
+mkGADT :: Name -> [Con] -> CompTrans [Dec]
+mkGADT n cons = do
+  e <- lift $ newName "e"
+  i <- lift $ newName "i"
+  let n' = transName n
+  cons' <- mapM (mkCon n' e i) cons
+  return $ [DataD [] n' [KindedTV e (AppT (AppT ArrowT StarT) StarT), PlainTV i] cons' []
+           ,DataD [] (nameLab n) [] [] []
+           ]
 
-mkCon :: Name -> Name -> Name -> Con -> Q Con
+mkCon :: Name -> Name -> Name -> Con -> CompTrans Con
 mkCon l e i (NormalC n sts) = ForallC [] ctx <$> inner
   where
     ctx = [foldl AppT EqualityT [(VarT i), (ConT $ nameLab l)]]
@@ -44,7 +51,9 @@ mkCon l e i (RecC n vsts) = ForallC [] ctx <$> inner
     inner  = liftM (RecC (transName n)) vsts''
 mkCon _ _ _ c = fail $ "Attempted to derive multi-sorted compositional datatype for something with non-normal constructors: " ++ show c
 
-unfixType :: Name -> Type -> Q Type
+unfixType :: Name -> Type -> CompTrans Type
 unfixType _ t | elem t baseTypes = return t
-unfixType e t = do t' <- expandSyns t >>= getLab
+unfixType e t = do t' <- lift (expandSyns t) >>= getLab
                    return $ AppT (VarT e) t'
+
+

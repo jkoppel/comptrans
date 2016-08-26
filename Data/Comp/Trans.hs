@@ -14,16 +14,19 @@
 -- @
 module Data.Comp.Trans (
     deriveMultiComp
+  , deriveMultiCompSubst
   , generateNameLists
   , makeSumType
 
   , getLabels
+  , getTypeParamVars
 
   , T.deriveTrans
   , U.deriveUntrans
   ) where
 
 import Control.Monad ( liftM, mapM )
+import Control.Monad.Reader ( runReaderT )
 
 import Data.Comp.Multi ( (:+:) )
 import Data.Data ( Data )
@@ -31,11 +34,14 @@ import Data.Data ( Data )
 import Language.Haskell.TH.Quote ( dataToExpQ )
 import Language.Haskell.TH
 
+import Data.Map ( Map )
+import qualified Data.Map as Map
+
 import qualified Data.Comp.Trans.DeriveTrans as T
 import qualified Data.Comp.Trans.DeriveUntrans as U
 import Data.Comp.Trans.DeriveMulti
 import Data.Comp.Trans.Collect
-import Data.Comp.Trans.Names
+import Data.Comp.Trans.Util
 
 
 -- |
@@ -67,8 +73,11 @@ import Data.Comp.Trans.Names
 --   Lit :: Int -> Lit e LitL
 -- @
 deriveMultiComp :: Name -> Q [Dec]
-deriveMultiComp root = do descs <- collectTypes root
-                          liftM concat $ mapM deriveMulti descs
+deriveMultiComp root = deriveMultiCompSubst root Map.empty
+
+deriveMultiCompSubst :: Name -> Map Name Type -> Q [Dec]
+deriveMultiCompSubst root substs = do descs <- collectTypes root
+                                      runReaderT (liftM concat $ mapM (deriveMulti substs) descs) (TransCtx descs)
 
 -- |
 -- 
@@ -106,6 +115,16 @@ getLabels nms = mapM toLabel nms
   where
     toLabel n = do TyConI (DataD _ n' _ _ _) <- reify $ nameLab n
                    return $ ConT n'
+
+getTypeParamVars :: [Name] -> Q [Name]
+getTypeParamVars = liftM concat . mapM getParams
+  where
+    getParams :: Name -> Q [Name]
+    getParams n = do inf <- reify n
+                     case inf of
+                       TyConI (DataD    _ _ tvs _ _) -> return $ getNames tvs
+                       TyConI (NewtypeD _ _ tvs _ _) -> return $ getNames tvs
+                       _                             -> return []
 
 -- |
 -- Folds together names with @(`:+:`)@.

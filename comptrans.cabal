@@ -56,14 +56,18 @@ Library
                        Data.Comp.Trans.DeriveMulti
                        Data.Comp.Trans.DeriveTrans
                        Data.Comp.Trans.DeriveUntrans
-                       Data.Comp.Trans.Names
+                       Data.Comp.Trans.Util
 
-  Build-Depends:       base >= 4.7, base < 5
+  Build-Depends:       base < 5
+                     , base >= 4.7
                      , compdata < 1
                      , containers <= 0.6
-                     , lens < 5
-                     , template-haskell
-                     , th-expand-syns <= 0.4.0.0
-                     , ghc-prim >= 0.2
                      , deepseq < 1.5
                      , deepseq-generics <= 0.2.0.0
+                     , ghc-prim >= 0.2
+                     , lens < 5
+                     , mtl
+                     , syb
+                     , template-haskell
+                     , th-expand-syns <= 0.4.0.0
+                     , transformers

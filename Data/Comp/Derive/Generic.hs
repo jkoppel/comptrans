@@ -23,7 +23,7 @@ import GHC.Generics ( Generic(..), (:*:)(..), (:+:)(..), K1(..), V1, Rec0, U1(..
 
 import Language.Haskell.TH
 
-import Data.Comp.Trans.Names
+import Data.Comp.Trans.Util
 
 --------------------------------------------------------------------------------
 -- Generic instances for general CDTs
