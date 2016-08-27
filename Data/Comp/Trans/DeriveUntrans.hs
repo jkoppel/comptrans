@@ -1,14 +1,17 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Data.Comp.Trans.DeriveUntrans (
     deriveUntrans
   ) where
 
 import Control.Monad ( liftM )
+import Control.Monad.Trans ( lift )
 
 import Data.Comp.Multi ( Alg, cata )
 
 import Language.Haskell.TH
 
-import Data.Comp.Trans.Util ( baseTypes, transName, nameLab, simplifyDataInf )
+import Data.Comp.Trans.Util
 
 --------------------------------------------------------------------------------
 
@@ -51,7 +54,7 @@ import Data.Comp.Trans.Util ( baseTypes, transName, nameLab, simplifyDataInf )
 -- 
 -- Note that you will need to manually provide an instance @(Untrans f, Untrans g) => Untrans (f :+: g)@
 -- due to phase issues.
-deriveUntrans :: [Name] -> Type -> Q [Dec]
+deriveUntrans :: [Name] -> Type -> CompTrans [Dec]
 deriveUntrans names term = do targDec <- mkTarg targNm
                               wrapperDec <- mkWrapper wrapNm unwrapNm targNm
                               fnDec <- mkFn untranslateNm term targNm unwrapNm fnNm
@@ -72,24 +75,24 @@ deriveUntrans names term = do targDec <- mkTarg targNm
     fnNm = mkName "untrans"
 
 {- type family Targ l -}
-mkTarg :: Name -> Q [Dec]
-mkTarg targNm = do i <- newName "i"
+mkTarg :: Name -> CompTrans [Dec]
+mkTarg targNm = do i <- lift $ newName "i"
                    return [FamilyD TypeFam targNm [PlainTV i] Nothing]
 
 {- newtype T l = T { t :: Targ l } -}
-mkWrapper :: Name -> Name -> Name -> Q [Dec]
-mkWrapper tpNm fNm targNm = do i <- newName "i"
+mkWrapper :: Name -> Name -> Name -> CompTrans [Dec]
+mkWrapper tpNm fNm targNm = do i <- lift $ newName "i"
                                let con = RecC tpNm [(fNm, NotStrict, AppT (ConT targNm) (VarT i))]
                                return [NewtypeD [] tpNm [PlainTV i] con []]
 {-
   untranslate :: JavaTerm l -> Targ l
   untranslate = t . cata untrans
 -}
-mkFn :: Name -> Type -> Name -> Name -> Name -> Q [Dec]
+mkFn :: Name -> Type -> Name -> Name -> Name -> CompTrans [Dec]
 mkFn fnNm term targNm fldNm untransNm = sequence [sig, def]
   where
-    sig = do i <- newName "i"
-             sigD fnNm (forallT [PlainTV i] (return []) (typ $ varT i))
+    sig = do i <- lift $ newName "i"
+             lift $ sigD fnNm (forallT [PlainTV i] (return []) (typ $ varT i))
 
     typ :: Q Type -> Q Type
     typ i = [t| $term' $i -> $targ $i |]
@@ -97,7 +100,7 @@ mkFn fnNm term targNm fldNm untransNm = sequence [sig, def]
     term' = return term
     targ = conT targNm
 
-    def = valD (varP fnNm) (normalB body) []
+    def = lift $ valD (varP fnNm) (normalB body) []
 
     body = [| $fld . cata $untrans |]
 
@@ -108,8 +111,8 @@ mkFn fnNm term targNm fldNm untransNm = sequence [sig, def]
   class Untrans f where
     untrans :: Alg f T
 -}
-mkClass :: Name -> Name -> Name -> Q [Dec]
-mkClass classNm funNm newtpNm = do f <- newName "f"
+mkClass :: Name -> Name -> Name -> CompTrans [Dec]
+mkClass classNm funNm newtpNm = do f <- lift $ newName "f"
                                    let funDec = SigD funNm (AppT (AppT (ConT ''Alg) (VarT f)) (ConT newtpNm))
                                    return [ClassD [] classNm [PlainTV f] [] [funDec]]
                       
@@ -118,15 +121,16 @@ mkClass classNm funNm newtpNm = do f <- newName "f"
   instance Untrans CompilationUnit where
     untrans (CompilationUnit x y z) = T $ J.CompilationUnit (t x) (t y) (t z)
 -}
-mkInstance :: Name -> Name -> Name -> Name -> Name -> Name -> Q [Dec]
-mkInstance classNm funNm wrap unwrap targNm typNm = do inf <- reify typNm
+mkInstance :: Name -> Name -> Name -> Name -> Name -> Name -> CompTrans [Dec]
+mkInstance classNm funNm wrap unwrap targNm typNm = do inf <- lift $ reify typNm
+                                                       targTyp <- getFullyAppliedType typNm
                                                        let nmTyps = simplifyDataInf inf
                                                        clauses <- mapM (uncurry $ mkClause wrap unwrap) nmTyps
-                                                       return [ famInst
+                                                       return [ famInst targTyp
                                                               , inst clauses
                                                               ]
   where
-    famInst = TySynInstD targNm (TySynEqn [ConT $ nameLab typNm] (ConT typNm))
+    famInst targTyp = TySynInstD targNm (TySynEqn [ConT $ nameLab typNm] targTyp)
 
     inst clauses =  InstanceD []
                               (AppT (ConT classNm) (ConT (transName typNm)))
@@ -134,8 +138,8 @@ mkInstance classNm funNm wrap unwrap targNm typNm = do inf <- reify typNm
 
   
 
-mkClause :: Name -> Name -> Name -> [Type] -> Q Clause
-mkClause wrap unwrap con tps = do nms <- mapM (const $ newName "x") tps
+mkClause :: Name -> Name -> Name -> [Type] -> CompTrans Clause
+mkClause wrap unwrap con tps = do nms <- mapM (const $ lift $ newName "x") tps
                                   return $ Clause [pat nms] (body nms) []
   where
     pat nms = ConP (transName con) (map VarP nms)

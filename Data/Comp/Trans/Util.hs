@@ -2,9 +2,15 @@
 
 module Data.Comp.Trans.Util
   (
-    CompTrans
-  , TransCtx(..)
+    TransCtx(..)
   , allTypes
+  , substitutions
+  , emptyTransCtx
+  , withAllTypes
+  , withSubstitutions
+    
+  , CompTrans
+  , runCompTrans
     
   , standardNameSet
   , baseTypes
@@ -14,14 +20,17 @@ module Data.Comp.Trans.Util
   , smartConstrName
   , modNameBase
   , simplifyDataInf
+  , getTypeArgs
   , getNames
   , containsAll
+  , getFullyAppliedType
   , applySubsts
   ) where
 
-import Control.Lens ( (^.), _3, makeClassy, view )
+import Control.Lens ( (^.), (.~), _3, makeClassy, view )
 import Control.Monad ( liftM2 )
-import Control.Monad.Reader ( ReaderT )
+import Control.Monad.Reader ( ReaderT(..), local )
+import Control.Monad.Trans ( lift )
 
 import Data.Data ( Data )
 import Data.Generics ( everywhere, mkT )
@@ -30,15 +39,31 @@ import qualified Data.Map as Map
 
 import Data.Set ( Set, fromList )
 
-import Language.Haskell.TH.Syntax
+import Language.Haskell.TH.Syntax hiding ( lift )
 
 
 type CompTrans = ReaderT TransCtx Q
 data TransCtx = TransCtx {
-  _allTypes :: [Name]
-  }
-
+                           _allTypes      :: [Name]
+                         , _substitutions :: Map.Map Name Type
+                         }
+                
 makeClassy ''TransCtx
+
+emptyTransCtx :: TransCtx
+emptyTransCtx = TransCtx {
+                           _allTypes      = []
+                         , _substitutions = Map.empty
+                         }
+
+runCompTrans :: CompTrans a -> Q a
+runCompTrans m = runReaderT m emptyTransCtx
+
+withSubstitutions :: Map.Map Name Type -> CompTrans a -> CompTrans a
+withSubstitutions substs = local (substitutions .~ substs)
+
+withAllTypes :: [Name] -> CompTrans a -> CompTrans a
+withAllTypes names = local (allTypes .~ names)
 
 {-
    Names that should be excluded from an AST hierarchy.
@@ -104,6 +129,14 @@ extractCon (RecC nm vsts)   = (nm, map (^. _3) vsts)
 extractCon (ForallC _ _ c)  = extractCon c
 extractCon _                = error "Unsupported constructor type encountered"
 
+getTypeArgs :: Name -> CompTrans [Name]
+getTypeArgs nm = do
+  inf <- lift $ reify nm
+  case inf of
+    TyConI (DataD _ _ tvs _ _)    -> return $ getNames tvs
+    TyConI (NewtypeD _ _ tvs _ _) -> return $ getNames tvs
+    _                             -> return []
+
 getNames :: [TyVarBndr] -> [Name]
 getNames = map getName
   where
@@ -113,6 +146,12 @@ getNames = map getName
 
 containsAll :: (Ord a) => Map a b -> [a] -> Bool
 containsAll mp = all (`Map.member` mp)
+
+getFullyAppliedType :: Name -> CompTrans Type
+getFullyAppliedType nm = do
+  substs <- view substitutions
+  typeArgs <- getTypeArgs nm
+  return $ foldl AppT (ConT nm) (applySubsts substs $ map VarT typeArgs)
 
 applySubsts :: (Data x) => Map Name Type -> x -> x
 applySubsts mp = everywhere (mkT subst1)
