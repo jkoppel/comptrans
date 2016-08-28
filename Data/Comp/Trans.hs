@@ -15,8 +15,11 @@
 -- data Lit = Lit Int
 -- @
 module Data.Comp.Trans (
-    Util.runCompTrans
+    runCompTrans
   , withSubstitutions
+  , withExcludedNames
+
+  , standardExcludedNames
   
   , deriveMultiComp
   , generateNameLists
@@ -74,7 +77,7 @@ import Data.Comp.Trans.Util as Util
 --   Lit :: Int -> Lit e LitL
 -- @
 deriveMultiComp :: Name -> CompTrans [Dec]
-deriveMultiComp root = do descs <- lift $ collectTypes root
+deriveMultiComp root = do descs <- collectTypes root
                           withAllTypes descs $ liftM concat $ mapM deriveMulti descs
 
 -- |
@@ -94,7 +97,7 @@ deriveMultiComp root = do descs <- lift $ collectTypes root
 -- @
 generateNameLists :: Name -> CompTrans [Dec]
 generateNameLists root = do
-    descs <- lift $ collectTypes root
+    descs <- collectTypes root
     nameList1 <- lift $ mkList ''Name (mkName "origASTTypes") descs
     nameList2 <- lift $ mkList ''Name (mkName "newASTTypes") (map transName descs)
 

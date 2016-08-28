@@ -5,14 +5,15 @@ module Data.Comp.Trans.Util
     TransCtx(..)
   , allTypes
   , substitutions
-  , emptyTransCtx
+  , excludedNames
   , withAllTypes
   , withSubstitutions
+  , withExcludedNames
     
   , CompTrans
   , runCompTrans
     
-  , standardNameSet
+  , standardExcludedNames
   , baseTypes
   , getLab
   , transName
@@ -38,6 +39,7 @@ import Data.Map ( Map )
 import qualified Data.Map as Map
 
 import Data.Set ( Set, fromList )
+import qualified Data.Set as Set
 
 import Language.Haskell.TH.Syntax hiding ( lift )
 
@@ -46,18 +48,20 @@ type CompTrans = ReaderT TransCtx Q
 data TransCtx = TransCtx {
                            _allTypes      :: [Name]
                          , _substitutions :: Map.Map Name Type
+                         , _excludedNames :: Set Name
                          }
                 
 makeClassy ''TransCtx
-
-emptyTransCtx :: TransCtx
-emptyTransCtx = TransCtx {
-                           _allTypes      = []
-                         , _substitutions = Map.empty
-                         }
+  
+defaultTransCtx :: TransCtx
+defaultTransCtx = TransCtx {
+                             _allTypes      = []
+                           , _substitutions = Map.empty
+                           , _excludedNames = standardExcludedNames
+                           }
 
 runCompTrans :: CompTrans a -> Q a
-runCompTrans m = runReaderT m emptyTransCtx
+runCompTrans m = runReaderT m defaultTransCtx
 
 withSubstitutions :: Map.Map Name Type -> CompTrans a -> CompTrans a
 withSubstitutions substs = local (substitutions .~ substs)
@@ -65,13 +69,16 @@ withSubstitutions substs = local (substitutions .~ substs)
 withAllTypes :: [Name] -> CompTrans a -> CompTrans a
 withAllTypes names = local (allTypes .~ names)
 
+withExcludedNames :: Set Name -> CompTrans a -> CompTrans a
+withExcludedNames names = local (excludedNames .~ names)
+
 {-
    Names that should be excluded from an AST hierarchy.
 
    Type synonyms need not be present.
 -}
-standardNameSet :: Set Name
-standardNameSet = fromList [''Maybe, ''Either, ''Int, ''Integer, ''Bool, ''Char, ''Double]
+standardExcludedNames :: Set Name
+standardExcludedNames = fromList [''Maybe, ''Either, ''Int, ''Integer, ''Bool, ''Char, ''Double]
 
 
 {-
