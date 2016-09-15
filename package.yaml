@@ -33,6 +33,7 @@ github: jkoppel/comptrans
 dependencies:
 - base <5
 - base >=4.7
+- bytestring
 - compdata <1
 - containers <=0.6
 - deepseq <1.5
@@ -42,6 +43,7 @@ dependencies:
 - mtl
 - syb
 - template-haskell
+- text
 - th-expand-syns <=0.4.0.0
 - transformers
 library:

@@ -43,6 +43,9 @@ import qualified Data.Set as Set
 
 import Language.Haskell.TH.Syntax hiding ( lift )
 
+import Data.ByteString ( ByteString )
+import Data.Text ( Text )
+
 
 type CompTrans = ReaderT TransCtx Q
 data TransCtx = TransCtx {
@@ -78,7 +81,7 @@ withExcludedNames names = local (excludedNames .~ names)
    Type synonyms need not be present.
 -}
 standardExcludedNames :: Set Name
-standardExcludedNames = fromList [''Maybe, ''Either, ''Int, ''Integer, ''Bool, ''Char, ''Double]
+standardExcludedNames = fromList [''Maybe, ''Either, ''Int, ''Integer, ''Bool, ''Char, ''Double, ''Text, ''ByteString]
 
 
 {-
@@ -95,6 +98,8 @@ baseTypes = [ ConT ''Int
             , ConT ''Integer
             , ConT ''String
             , AppT ListT (ConT ''Char)
+            , ConT ''Text
+            , ConT ''ByteString
             ]
 
 
