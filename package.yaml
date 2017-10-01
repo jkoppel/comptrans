@@ -34,8 +34,8 @@ dependencies:
 - base <5
 - base >=4.7
 - bytestring
-- compdata <1
 - containers <=0.6
+- cubix-compdata
 - deepseq <1.5
 - deepseq-generics <=0.2.0.0
 - ghc-prim >=0.2
