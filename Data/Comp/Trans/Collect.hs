@@ -45,7 +45,7 @@ collectTypes' n = view excludedNames >>= run
   where
     run :: Set Name -> CompTrans (Set Name)
     run exclNms | member n exclNms = return empty
-    run exclNms                    = do
+    run _                          = do
       inf <- lift $ reify n
       let cons = case inf of
             TyConI (DataD _ _ _ cns _)    -> cns
