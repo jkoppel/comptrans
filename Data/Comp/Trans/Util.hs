@@ -28,7 +28,7 @@ module Data.Comp.Trans.Util
   , applySubsts
   ) where
 
-import Control.Lens ( (^.), (.~), _3, makeClassy, view )
+import Control.Lens ( (^.), (.~), _3, makeClassy, view, _Just )
 import Control.Monad ( liftM2 )
 import Control.Monad.Reader ( ReaderT(..), local )
 import Control.Monad.Trans ( lift )
@@ -48,23 +48,35 @@ import Data.Text ( Text )
 
 
 type CompTrans = ReaderT TransCtx Q
+
+data AnnotationPropInfo = AnnotationPropInfo { _annotationVar :: Name
+                                             , _defaultAnn    :: Exp
+                                             }
+
 data TransCtx = TransCtx {
                            _allTypes      :: [Name]
                          , _substitutions :: Map.Map Name Type
                          , _excludedNames :: Set Name
+                         , _annotationProp :: Maybe AnnotationPropInfo
                          }
-                
+
+makeClassy ''AnnotationPropInfo
 makeClassy ''TransCtx
   
 defaultTransCtx :: TransCtx
 defaultTransCtx = TransCtx {
-                             _allTypes      = []
-                           , _substitutions = Map.empty
-                           , _excludedNames = standardExcludedNames
+                             _allTypes       = []
+                           , _substitutions  = Map.empty
+                           , _excludedNames  = standardExcludedNames
+                           , _annotationProp = Nothing
                            }
 
 runCompTrans :: CompTrans a -> Q a
 runCompTrans m = runReaderT m defaultTransCtx
+
+
+withAnnotationProp :: Name -> Exp -> CompTrans a -> CompTrans a
+withAnnotationProp var def = local (annotationProp._Just .~ (AnnotationPropInfo var def))
 
 withSubstitutions :: Map.Map Name Type -> CompTrans a -> CompTrans a
 withSubstitutions substs = local (substitutions .~ substs)
