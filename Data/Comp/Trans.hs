@@ -18,8 +18,10 @@ module Data.Comp.Trans (
     runCompTrans
   , withSubstitutions
   , withExcludedNames
+  , withAnnotationProp
 
   , standardExcludedNames
+  , defaultPropAnn
   
   , deriveMultiComp
   , generateNameLists

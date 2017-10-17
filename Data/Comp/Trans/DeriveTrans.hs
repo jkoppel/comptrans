@@ -1,11 +1,18 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Data.Comp.Trans.DeriveTrans
   (
     deriveTrans
   ) where
 
 import Control.Monad.Trans ( lift )
+import Data.Map ( Map )
+import qualified Data.Map as Map
 
+import Control.Lens ( (^.), _1, _2, (%~), view )
 import Language.Haskell.TH
+
+import Data.Comp.Multi ( inj, Cxt(Term), (:&:)(..) )
 
 import Data.Comp.Trans.Util
 
@@ -17,10 +24,10 @@ import Data.Comp.Trans.Util
 -- import qualified Foo as F
 -- ...
 -- type ArithTerm = Term Arith
--- runCompTrans $ deriveTrans ''Arith [''Arith, ''Atom, ''Lit] ArithTerm
+-- runCompTrans $ deriveTrans ''Arith [''Arith, ''Atom, ''Lit] (TH.ConT ''ArithTerm)
 -- @
 -- 
--- will create
+-- will create,
 -- 
 -- @
 -- translate :: F.Arith -> ArithTerm ArithL
@@ -28,7 +35,7 @@ import Data.Comp.Trans.Util
 -- 
 -- 
 -- class Trans a l where
---   trans a -> ArithTerm l
+--   trans :: a -> ArithTerm l
 -- 
 -- instance Trans F.Arith ArithL where
 --   trans (F.Add x y) = iAdd (trans x) (trans y)
@@ -40,15 +47,35 @@ import Data.Comp.Trans.Util
 -- instance Trans F.Lit LitL where
 --   trans (F.Lit n) = iLit n
 -- @
-deriveTrans :: Name -> [Name] -> Type -> CompTrans [Dec]
+--
+-- With annotation propagation on, it will instead produce
+-- `translate :: F.Arith Ann -> Term (Arith :&: Ann) ArithL
+deriveTrans :: Type -> [Name] -> Type -> CompTrans [Dec]
 deriveTrans root names term = do let classNm = mkName "Trans"
                                  funNm <- lift $ newName "trans"
 
                                  classDec <- mkClass classNm funNm term
                                  funDec <- mkFunc root funNm term
-                                 instances <- mapM (mkInstance classNm funNm) names
+
+                                 annPropInf <- view annotationProp
+                                 transAlts <- case annPropInf of
+                                                 (Just api) -> mkAnnotationPropTransAlts api
+                                                 Nothing    -> mkNormalTransAlts
+
+                                 instances <- mapM (mkInstance transAlts classNm funNm) names
 
                                  return $ [classDec] ++ funDec ++ instances
+
+data TransAlts = TransAlts {
+                             makeTransRhs :: Name -> Name -> [(Name, Type)] -> Body -- Fun nm, constructor, variables, types
+                           }
+
+mkAnnotationPropTransAlts :: AnnotationPropInfo -> CompTrans TransAlts
+mkAnnotationPropTransAlts api = do substs <- view substitutions
+                                   return $ TransAlts { makeTransRhs = makeTransRhsPropAnn substs api}
+
+mkNormalTransAlts :: CompTrans TransAlts
+mkNormalTransAlts = return $ TransAlts { makeTransRhs = makeTransRhsNormal}
 
 -- |
 -- Example:
@@ -57,15 +84,17 @@ deriveTrans root names term = do let classNm = mkName "Trans"
 -- translate :: J.CompilationUnit -> JavaTerm CompilationUnitL
 -- translate = trans
 -- @
-mkFunc :: Name -> Name -> Type -> CompTrans [Dec]
+mkFunc :: Type -> Name -> Type -> CompTrans [Dec]
 mkFunc typ funNm term = do
-  srcTyp <- getFullyAppliedType typ
+  substs <- view substitutions
+  let srcTyp = applySubsts substs typ
+  isAnn <- getIsAnn
+  lab <- getLab isAnn typ
   return [ SigD translate (AppT (AppT ArrowT srcTyp) (AppT term lab))
          , ValD (VarP translate) (NormalB funNm') []
          ]
   where
     translate = mkName "translate"
-    lab = ConT $ nameLab typ
     funNm' = VarE funNm
 
 -- |
@@ -88,24 +117,40 @@ mkClass classNm funNm term = do a <- lift $ newName "a"
 -- instance Trans J.CompilationUnit CompilationUnitL where
 --   trans (J.CompilationUnit x y z) = iCompilationUnit (trans x) (trans y) (trans z)
 -- @
-mkInstance :: Name -> Name -> Name -> CompTrans Dec
-mkInstance classNm funNm typNm = do inf <- lift $ reify typNm
-                                    srcTyp <- getFullyAppliedType typNm
-                                    let nmTyps = simplifyDataInf inf
-                                    clauses <- mapM (uncurry $ mkClause funNm) nmTyps
-                                    let targNm = nameLab typNm
-                                    return (InstanceD []
-                                                      (AppT (AppT (ConT classNm) srcTyp) (ConT targNm))
-                                                      [FunD funNm clauses])
+mkInstance :: TransAlts -> Name -> Name -> Name -> CompTrans Dec
+mkInstance transAlts classNm funNm typNm = do
+  inf <- lift $ reify typNm
+  srcTyp <- getFullyAppliedType typNm
+  let nmTyps = simplifyDataInf inf
+  clauses <- mapM (uncurry $ mkClause transAlts funNm) nmTyps
+  let targNm = nameLab typNm
+  return (InstanceD []
+                   (AppT (AppT (ConT classNm) srcTyp) (ConT targNm))
+                   [FunD funNm clauses])
 
-mkClause :: Name -> Name -> [Type] -> CompTrans Clause
-mkClause funNm con tps = do nms <- lift $ mapM (const $ newName "x") tps
-                            return $ Clause [pat nms] (body nms) []
+
+atom :: Name -> (Name, Type) -> Exp
+atom funNm (x, t) | elem t baseTypes = VarE x
+atom funNm (x, _)                    = AppE (VarE funNm) (VarE x)
+
+makeTransRhsPropAnn :: Map Name Type -> AnnotationPropInfo -> Name -> Name -> [(Name, Type)] -> Body
+makeTransRhsPropAnn substs annPropInf funNm con nmTps = NormalB $ AppE (ConE 'Term) $ AppE (AppE (ConE '(:&:)) nodeExp) annExp
+  where
+    nmTps' :: [(Name, Type)]
+    nmTps' = map (_2 %~ (applySubsts substs)) nmTps
+
+    annVar :: (a, Type) -> Bool
+    annVar (_, t) = (annPropInf ^. isAnn) t
+
+    nodeExp = AppE (VarE 'inj) $ foldl AppE (ConE (transName con)) (map (atom funNm) $ filter (not.annVar) nmTps')
+
+    annExp = (annPropInf ^. propAnn) (map (_1 %~ VarE) $ filter annVar nmTps')
+
+makeTransRhsNormal :: Name -> Name -> [(Name, Type)] -> Body
+makeTransRhsNormal funNm con nmTps = NormalB $ foldl AppE (VarE (smartConstrName con)) (map (atom funNm) nmTps)
+
+mkClause :: TransAlts -> Name -> Name -> [Type] -> CompTrans Clause
+mkClause transAlts funNm con tps = do nms <- lift $ mapM (const $ newName "x") tps
+                                      return $ Clause [pat nms] (makeTransRhs transAlts funNm con $ zip nms tps) []
   where
     pat nms = ConP con (map VarP nms)
-
-    body nms = NormalB $ foldl AppE (VarE (smartConstrName con)) (map atom $ zip nms tps)
-
-    atom :: (Name, Type) -> Exp
-    atom (x, t) | elem t baseTypes = VarE x
-    atom (x, _)                    = AppE (VarE funNm) (VarE x)

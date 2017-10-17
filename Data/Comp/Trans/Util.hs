@@ -2,13 +2,20 @@
 
 module Data.Comp.Trans.Util
   (
-    TransCtx(..)
+    AnnotationPropInfo(..)
+  , isAnn
+  , propAnn
+
+  , TransCtx(..)
   , allTypes
   , substitutions
   , excludedNames
+  , annotationProp
+
   , withAllTypes
   , withSubstitutions
   , withExcludedNames
+  , withAnnotationProp
     
   , CompTrans
   , runCompTrans
@@ -25,10 +32,13 @@ module Data.Comp.Trans.Util
   , getNames
   , containsAll
   , getFullyAppliedType
+  , getIsAnn
+  , defaultPropAnn
+  , isVar
   , applySubsts
   ) where
 
-import Control.Lens ( (^.), (.~), _3, makeClassy, view, _Just )
+import Control.Lens ( (^.), (.~), _3, makeClassy, view )
 import Control.Monad ( liftM2 )
 import Control.Monad.Reader ( ReaderT(..), local )
 import Control.Monad.Trans ( lift )
@@ -49,13 +59,13 @@ import Data.Text ( Text )
 
 type CompTrans = ReaderT TransCtx Q
 
-data AnnotationPropInfo = AnnotationPropInfo { _annotationVar :: Name
-                                             , _defaultAnn    :: Exp
+data AnnotationPropInfo = AnnotationPropInfo { _isAnn   :: Type -> Bool
+                                             , _propAnn :: [(Exp, Type)] -> Exp
                                              }
 
 data TransCtx = TransCtx {
                            _allTypes      :: [Name]
-                         , _substitutions :: Map.Map Name Type
+                         , _substitutions :: Map Name Type
                          , _excludedNames :: Set Name
                          , _annotationProp :: Maybe AnnotationPropInfo
                          }
@@ -75,8 +85,8 @@ runCompTrans :: CompTrans a -> Q a
 runCompTrans m = runReaderT m defaultTransCtx
 
 
-withAnnotationProp :: Name -> Exp -> CompTrans a -> CompTrans a
-withAnnotationProp var def = local (annotationProp._Just .~ (AnnotationPropInfo var def))
+withAnnotationProp :: (Type -> Bool) -> ([(Exp, Type)] -> Exp) -> CompTrans a -> CompTrans a
+withAnnotationProp isAnn propAnn = local (annotationProp .~ (Just $ AnnotationPropInfo isAnn propAnn))
 
 withSubstitutions :: Map.Map Name Type -> CompTrans a -> CompTrans a
 withSubstitutions substs = local (substitutions .~ substs)
@@ -115,19 +125,23 @@ baseTypes = [ ConT ''Int
             ]
 
 
-getLab :: Type -> CompTrans Type
-getLab (AppT f@(AppT _ _) t) = liftM2 AppT (getLab f) (getLab t)
-getLab (AppT (ConT n) t) = do
-  names <- view allTypes
-  if elem n names then
-    return $ ConT $ nameLab n
-   else
-    AppT (ConT n) <$> getLab t
-getLab (AppT f t) = AppT f <$> getLab t
-getLab ListT      = return ListT
-getLab (TupleT n) = return $ TupleT n
-getLab (ConT n)   = return $ ConT $ nameLab n
-getLab _          = fail "When deriving multi-sorted compositional data type, found unsupported type in AST."
+getLab :: (Type -> Bool) -> Type -> CompTrans Type
+getLab isAnn = gl
+  where
+    gl (AppT f@(AppT _ _) t) = liftM2 AppT (gl f) (gl t)
+    gl (AppT c@(ConT n) t)
+      | isAnn t = gl c
+      | otherwise = do
+          names <- view allTypes
+          if elem n names then
+            return $ ConT $ nameLab n
+           else
+            AppT (ConT n) <$> gl t
+    gl (AppT f t) = AppT f <$> gl t
+    gl ListT      = return ListT
+    gl (TupleT n) = return $ TupleT n
+    gl (ConT n)   = return $ ConT $ nameLab n
+    gl x          = fail $ "When deriving multi-sorted compositional data type, found unsupported type in AST: " ++ show x
 
 
 transName :: Name -> Name
@@ -176,6 +190,24 @@ getFullyAppliedType nm = do
   substs <- view substitutions
   typeArgs <- getTypeArgs nm
   return $ foldl AppT (ConT nm) (applySubsts substs $ map VarT typeArgs)
+
+getIsAnn :: CompTrans (Type -> Bool)
+getIsAnn = do
+  mApi <- view annotationProp
+  case mApi of
+    Nothing  -> return $ const False
+    Just api -> return $ api ^. isAnn
+
+-- | A default annotation propagater: Assumes 0 or 1 annotations per constructor
+defaultPropAnn :: Exp -> [(Exp, Type)] -> Exp
+defaultPropAnn defAnn tps = case tps of
+      []       -> defAnn
+      [(x, _)] -> x
+      _        -> error "comptrans: Multiple annotation fields detected in constructor"
+
+isVar :: Type -> Bool
+isVar (VarT n) = True
+isVar _        = False
 
 applySubsts :: (Data x) => Map Name Type -> x -> x
 applySubsts mp = everywhere (mkT subst1)
