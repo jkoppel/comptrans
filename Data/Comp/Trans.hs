@@ -22,6 +22,7 @@ module Data.Comp.Trans (
 
   , standardExcludedNames
   , defaultPropAnn
+  , defaultUnpropAnn
   
   , deriveMultiComp
   , generateNameLists

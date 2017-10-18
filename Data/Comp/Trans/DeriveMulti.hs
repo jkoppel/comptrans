@@ -66,7 +66,7 @@ mkCon l e i (NormalC n sts) = view annotationProp >>= mkConNormal
         ctx = [foldl AppT EqualityT [(VarT i), (ConT $ nameLab l)]]
 
         sts'  = case annPropInfo of
-                  Just api -> filter (not . (api ^. isAnn) . (^. _2)) sts
+                  Just api -> filter (not . (api ^. isAnnotation) . (^. _2)) sts
                   Nothing  -> sts
         sts'' = sts' & (traverse._2) %%~ unfixType e
         inner = liftM (NormalC (transName n)) sts''
@@ -77,7 +77,7 @@ mkCon l e i (RecC n vsts) = view annotationProp >>= mkConRec
         ctx = [foldl AppT EqualityT [(VarT i), (ConT $ nameLab l)]]
 
         vsts'   = case annPropInfo of
-                   Just api -> filter (not . (api ^. isAnn) . (^. _3)) vsts
+                   Just api -> filter (not . (api ^. isAnnotation) . (^. _3)) vsts
                    Nothing  -> vsts
         vsts''  = vsts'  & (traverse._1) %~ transName
         vsts''' = vsts'' & (traverse._3) %%~ unfixType e

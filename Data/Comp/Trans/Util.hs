@@ -3,8 +3,10 @@
 module Data.Comp.Trans.Util
   (
     AnnotationPropInfo(..)
-  , isAnn
+  , annTyp
+  , isAnnotation
   , propAnn
+  , unpropAnn
 
   , TransCtx(..)
   , allTypes
@@ -33,9 +35,12 @@ module Data.Comp.Trans.Util
   , containsAll
   , getFullyAppliedType
   , getIsAnn
+  , isPropagatingAnns
   , defaultPropAnn
+  , defaultUnpropAnn
   , isVar
   , applySubsts
+  , applyCurSubstitutions
   ) where
 
 import Control.Lens ( (^.), (.~), _3, makeClassy, view )
@@ -47,7 +52,7 @@ import Data.Data ( Data )
 import Data.Generics ( everywhere, mkT )
 import Data.Map ( Map )
 import qualified Data.Map as Map
-
+import Data.Maybe ( isJust )
 import Data.Set ( Set, fromList )
 import qualified Data.Set as Set
 
@@ -59,8 +64,10 @@ import Data.Text ( Text )
 
 type CompTrans = ReaderT TransCtx Q
 
-data AnnotationPropInfo = AnnotationPropInfo { _isAnn   :: Type -> Bool
-                                             , _propAnn :: [(Exp, Type)] -> Exp
+data AnnotationPropInfo = AnnotationPropInfo { _annTyp       :: Type
+                                             , _isAnnotation :: Type -> Bool
+                                             , _propAnn      :: [(Exp, Type)] -> Exp
+                                             , _unpropAnn    :: Exp -> Int -> [Exp]
                                              }
 
 data TransCtx = TransCtx {
@@ -85,8 +92,8 @@ runCompTrans :: CompTrans a -> Q a
 runCompTrans m = runReaderT m defaultTransCtx
 
 
-withAnnotationProp :: (Type -> Bool) -> ([(Exp, Type)] -> Exp) -> CompTrans a -> CompTrans a
-withAnnotationProp isAnn propAnn = local (annotationProp .~ (Just $ AnnotationPropInfo isAnn propAnn))
+withAnnotationProp :: Type -> (Type -> Bool) -> ([(Exp, Type)] -> Exp) -> (Exp -> Int -> [Exp]) -> CompTrans a -> CompTrans a
+withAnnotationProp annTyp isAnn propAnn unpropAnn = local (annotationProp .~ (Just $ AnnotationPropInfo annTyp isAnn propAnn unpropAnn))
 
 withSubstitutions :: Map.Map Name Type -> CompTrans a -> CompTrans a
 withSubstitutions substs = local (substitutions .~ substs)
@@ -191,12 +198,15 @@ getFullyAppliedType nm = do
   typeArgs <- getTypeArgs nm
   return $ foldl AppT (ConT nm) (applySubsts substs $ map VarT typeArgs)
 
+isPropagatingAnns :: CompTrans Bool
+isPropagatingAnns = isJust <$> view annotationProp
+
 getIsAnn :: CompTrans (Type -> Bool)
 getIsAnn = do
   mApi <- view annotationProp
   case mApi of
     Nothing  -> return $ const False
-    Just api -> return $ api ^. isAnn
+    Just api -> return $ api ^. isAnnotation
 
 -- | A default annotation propagater: Assumes 0 or 1 annotations per constructor
 defaultPropAnn :: Exp -> [(Exp, Type)] -> Exp
@@ -204,6 +214,11 @@ defaultPropAnn defAnn tps = case tps of
       []       -> defAnn
       [(x, _)] -> x
       _        -> error "comptrans: Multiple annotation fields detected in constructor"
+
+defaultUnpropAnn :: Exp -> Int -> [Exp]
+defaultUnpropAnn _ 0 = []
+defaultUnpropAnn x 1 = [x]
+defaultUnpropAnn _ _ = error "comptrans: Multiple annotation fields detected in constructor"
 
 isVar :: Type -> Bool
 isVar (VarT n) = True
@@ -217,3 +232,6 @@ applySubsts mp = everywhere (mkT subst1)
       Just res -> res
       Nothing  -> t
     subst1 t          = t
+
+applyCurSubstitutions :: (Data x) => x -> CompTrans x
+applyCurSubstitutions x = applySubsts <$> view substitutions <*> pure x

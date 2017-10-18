@@ -49,7 +49,7 @@ import Data.Comp.Trans.Util
 -- @
 --
 -- With annotation propagation on, it will instead produce
--- `translate :: F.Arith Ann -> Term (Arith :&: Ann) ArithL
+-- `translate :: F.Arith Ann -> Term (Arith :&: Ann) ArithL`
 deriveTrans :: Type -> [Name] -> Type -> CompTrans [Dec]
 deriveTrans root names term = do let classNm = mkName "Trans"
                                  funNm <- lift $ newName "trans"
@@ -86,8 +86,7 @@ mkNormalTransAlts = return $ TransAlts { makeTransRhs = makeTransRhsNormal}
 -- @
 mkFunc :: Type -> Name -> Type -> CompTrans [Dec]
 mkFunc typ funNm term = do
-  substs <- view substitutions
-  let srcTyp = applySubsts substs typ
+  srcTyp <- applyCurSubstitutions typ
   isAnn <- getIsAnn
   lab <- getLab isAnn typ
   return [ SigD translate (AppT (AppT ArrowT srcTyp) (AppT term lab))
@@ -130,7 +129,7 @@ mkInstance transAlts classNm funNm typNm = do
 
 
 atom :: Name -> (Name, Type) -> Exp
-atom funNm (x, t) | elem t baseTypes = VarE x
+atom _     (x, t) | elem t baseTypes = VarE x
 atom funNm (x, _)                    = AppE (VarE funNm) (VarE x)
 
 makeTransRhsPropAnn :: Map Name Type -> AnnotationPropInfo -> Name -> Name -> [(Name, Type)] -> Body
@@ -140,7 +139,7 @@ makeTransRhsPropAnn substs annPropInf funNm con nmTps = NormalB $ AppE (ConE 'Te
     nmTps' = map (_2 %~ (applySubsts substs)) nmTps
 
     annVar :: (a, Type) -> Bool
-    annVar (_, t) = (annPropInf ^. isAnn) t
+    annVar (_, t) = (annPropInf ^. isAnnotation) t
 
     nodeExp = AppE (VarE 'inj) $ foldl AppE (ConE (transName con)) (map (atom funNm) $ filter (not.annVar) nmTps')
 
