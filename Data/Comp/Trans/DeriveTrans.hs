@@ -24,15 +24,12 @@ import Data.Comp.Trans.Util
 -- import qualified Foo as F
 -- ...
 -- type ArithTerm = Term Arith
--- runCompTrans $ deriveTrans ''Arith [''Arith, ''Atom, ''Lit] (TH.ConT ''ArithTerm)
+-- runCompTrans $ deriveTrans [''Arith, ''Atom, ''Lit] (TH.ConT ''ArithTerm)
 -- @
 -- 
 -- will create,
 -- 
 -- @
--- translate :: F.Arith -> ArithTerm ArithL
--- translate = trans
--- 
 -- 
 -- class Trans a l where
 --   trans :: a -> ArithTerm l
@@ -48,23 +45,22 @@ import Data.Comp.Trans.Util
 --   trans (F.Lit n) = iLit n
 -- @
 --
--- With annotation propagation on, it will instead produce
--- `translate :: F.Arith Ann -> Term (Arith :&: Ann) ArithL`
-deriveTrans :: Type -> [Name] -> Type -> CompTrans [Dec]
-deriveTrans root names term = do let classNm = mkName "Trans"
-                                 funNm <- lift $ newName "trans"
+-- With annotation propagation on, it will instead produce, e.g.:
+-- `trans :: F.Arith Ann -> Term (Arith :&: Ann) ArithL`
+deriveTrans :: [Name] -> Type -> CompTrans [Dec]
+deriveTrans names term = do
+  let classNm = mkName "Trans"
+  funNm <- lift $ newName "trans"
 
-                                 classDec <- mkClass classNm funNm term
-                                 funDec <- mkFunc root funNm term
+  classDec <- mkClass classNm funNm term
 
-                                 annPropInf <- view annotationProp
-                                 transAlts <- case annPropInf of
-                                                 (Just api) -> mkAnnotationPropTransAlts api
-                                                 Nothing    -> mkNormalTransAlts
+  annPropInf <- view annotationProp
+  transAlts <- case annPropInf of
+    Just api -> mkAnnotationPropTransAlts api
+    Nothing  -> mkNormalTransAlts
 
-                                 instances <- mapM (mkInstance transAlts classNm funNm) names
-
-                                 return $ [classDec] ++ funDec ++ instances
+  instances <- mapM (mkInstance transAlts classNm funNm) names
+  return $ [classDec] ++ instances
 
 data TransAlts = TransAlts {
                              makeTransRhs :: Name -> Name -> [(Name, Type)] -> Body -- Fun nm, constructor, variables, types
@@ -88,7 +84,7 @@ mkFunc :: Type -> Name -> Type -> CompTrans [Dec]
 mkFunc typ funNm term = do
   srcTyp <- applyCurSubstitutions typ
   isAnn <- getIsAnn
-  lab <- getLab isAnn typ
+  lab <- getLab isAnn srcTyp
   return [ SigD translate (AppT (AppT ArrowT srcTyp) (AppT term lab))
          , ValD (VarP translate) (NormalB funNm') []
          ]
